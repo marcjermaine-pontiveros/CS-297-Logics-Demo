@@ -1,0 +1,56 @@
+# OpenQASM to Isabelle Pipeline Configuration
+
+# Pipeline settings
+pipeline:
+  # Output directory for generated theory files
+  output_dir: "generated_theories"
+
+  # Default theory naming pattern
+  theory_naming: "{input_stem}_verify"
+
+  # Verbose output
+  verbose: false
+
+# Isabelle settings
+isabelle:
+  # Isabelle installation directory
+  # Default: auto-detected from PATH
+  # isabelle_home: "~/isabelle/Isabelle2024"
+
+  # AFP (Archive of Formal Proofs) directory
+  # Default: auto-detected from Isabelle components
+  # afp_dir: "~/isabelle/afp"
+
+  # QHLProver session name
+  qhl_session: "QHLProver.Quantum_Hoare"
+
+# Gate mappings
+gates:
+  # Single-qubit gates
+  h: "H_gate"
+  x: "X_gate"
+  y: "Y_gate"
+  z: "Z_gate"
+  s: "S_gate"
+  sdg: "Sdg_gate"
+  t: "T_gate"
+  tdg: "Tdg_gate"
+
+  # Two-qubit gates
+  cx: "CNOT_gate"
+  cz: "CZ_gate"
+  swap: "SWAP_gate"
+
+  # Measurement
+  measure: "QMeas"
+
+# Verification settings
+verification:
+  # Generate probability lemmas
+  generate_probability_lemmas: true
+
+  # Generate wellformedness lemmas
+  generate_wellformed_lemmas: true
+
+  # Proof method (simp, auto, etc.)
+  proof_method: "simp add: wp_simps matrix_arith"

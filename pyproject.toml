@@ -1,0 +1,9 @@
+[project]
+name = "cs-297-logics"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=1.24.0",
+    "qiskit>=1.0.0",
+]
