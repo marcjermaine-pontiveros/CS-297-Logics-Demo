@@ -25,9 +25,14 @@ print_warn() {
 
 # Check if Isabelle is installed
 if ! command -v isabelle &> /dev/null; then
-    print_error "Isabelle not found in PATH"
-    print_info "Please run ./setup.sh to install Isabelle"
-    exit 1
+    # Try to source the config file
+    if [ -f "$HOME/isabelle/isabelle-config.sh" ]; then
+        source "$HOME/isabelle/isabelle-config.sh"
+    else
+        print_error "Isabelle not found in PATH"
+        print_info "Please run ./setup.sh to install Isabelle"
+        exit 1
+    fi
 fi
 
 # Parse command line arguments

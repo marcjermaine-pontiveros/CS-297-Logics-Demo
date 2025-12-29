@@ -23,7 +23,7 @@ This pipeline transforms quantum circuits written in OpenQASM into Isabelle theo
 uv sync
 
 # 2. Generate theory from QASM
-python3 qasm_to_isabelle.py examples/hadamard.qasm
+uv run python qasm_to_isabelle.py examples/hadamard.qasm
 
 # 3. Verify the theory
 bin/build.sh

@@ -18,7 +18,7 @@ measure q[0] -> c[0];
 ### Step 2: Generate Isabelle Theory
 
 ```bash
-python3 qasm_to_isabelle.py my_circuit.qasm
+uv run python qasm_to_isabelle.py my_circuit.qasm
 ```
 
 **Output:** Generates `my_circuit_verify.thy` with:
@@ -75,12 +75,6 @@ cd ..
 # Check results
 isabelle build -v -D . QHL_Tests
 ```
-
-## Supported Gates
-
-- **Single-qubit**: H, X, Y, Z, S, T
-- **Two-qubit**: CNOT (limited)
-- **Measurement**: All measurement operations
 
 ## Common Issues
 
