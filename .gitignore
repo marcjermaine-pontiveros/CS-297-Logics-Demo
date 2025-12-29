@@ -1,0 +1,18 @@
+# Generated files
+output/
+*.thy
+
+# Isabelle build artifacts
+.isabelle/
+*.heap
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS files
+.DS_Store
+*.swp
+*.swo

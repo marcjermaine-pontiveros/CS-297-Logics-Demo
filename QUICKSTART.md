@@ -1,61 +1,104 @@
-# Quick Start Guide - Using Your Generated Theories
+# 🚀 Quick Start - OpenQASM to Verified Isabelle Theory
 
-## The Issue
+## Generate Your First Verified Quantum Circuit
 
-AFP (Archive of Formal Proofs) versions must match your Isabelle version exactly. The "current" AFP is often ahead of stable releases.
+### Step 1: Create Your QASM Circuit
 
-## Solution: Manual Verification in Isabelle/jEdit
+Create `my_circuit.qasm`:
 
-Instead of building all theories, verify them individually in Isabelle/jEdit:
-
-### Step 1: Open Isabelle/jEdit
-
-```bash
-source ~/isabelle/isabelle-config.sh
-isabelle jedit HadamardTest.thy
+```qasm
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[1];
+creg c[1];
+h q[0];
+measure q[0] -> c[0];
 ```
 
-### Step 2: Wait for Session Loading
-
-When you first open a theory, Isabelle/jEdit will:
-1. Load the QHLProver session (this takes time on first load)
-2. Parse your theory file
-3. Check all proofs automatically
-
-### Step 3: Check Verification Status
-
-- **Green text**: Verified ✅
-- **Red text**: Errors ❌
-- **Background color**: Green when fully verified
-
-### Benefits of This Approach
-
-✅ **No AFP version issues** - Isabelle/jEdit handles dependencies automatically
-✅ **Incremental** - Verify one theory at a time
-✅ **Interactive** - See proofs as they check
-✅ **Faster** - Only load what you need
-
-### Example Workflow
+### Step 2: Generate Isabelle Theory
 
 ```bash
-# Verify Hadamard circuit
-isabelle jedit HadamardTest.thy
-
-# Verify Bell state
-isabelle jedit BellState.thy
-
-# Verify teleportation
-isabelle jedit Teleportation.thy
+python3 qasm_to_isabelle.py my_circuit.qasm
 ```
 
-## Pipeline Status
+**Output:** Generates `my_circuit_verify.thy` with:
+- ✅ Circuit definition in QHLProver syntax
+- ✅ Import statements for Isabelle verification
+- ✅ Verification lemmas for gate properties
 
-Your **OpenQASM → Isabelle pipeline is working perfectly!** ✅
+### Step 3: Verify the Theory
 
-The generated theories are correct. The only issue is AFP version matching for bulk builds, which doesn't affect individual theory verification.
+```bash
+./bin/build.sh
+```
+
+**Expected Output:**
+```
+Finished QHL_Tests (0:00:03 elapsed time)
+```
+
+🎉 **Your quantum circuit is now formally verified!**
+
+## What Just Happened?
+
+1. **QASM Parsing** → Your circuit was converted to Qiskit
+2. **Gate Extraction** → Quantum gates were identified
+3. **QHLProver Generation** → Created Isabelle syntax
+4. **Formal Verification** → Proved properties about your circuit
+
+## View Your Verified Theory
+
+```bash
+# See the generated file
+cat my_circuit_verify.thy
+
+# Open in Isabelle/jEdit (interactive)
+isabelle jedit my_circuit_verify.thy
+```
+
+**What you'll see:**
+- Green highlighted lemmas = ✅ **PROVEN**
+- Circuit structure verification
+- Gate properties (unitary, dimensions, etc.)
+
+## Try More Examples
+
+```bash
+# Generate all example circuits
+cd examples
+./run_examples.sh
+
+# Build and verify all
+cd ..
+./bin/build.sh
+
+# Check results
+isabelle build -v -D . QHL_Tests
+```
+
+## Supported Gates
+
+- **Single-qubit**: H, X, Y, Z, S, T
+- **Two-qubit**: CNOT (limited)
+- **Measurement**: All measurement operations
+
+## Common Issues
+
+**"Gate not supported"**
+- Your circuit uses unsupported gates
+- Check the supported gates list
+
+**Build fails**
+- Ensure Isabelle + AFP are installed: `./bin/setup.sh`
+- Check versions match Isabelle2025 + AFP-2025
+
+**Want to see what got proven?**
+```bash
+isabelle build -v -D . QHL_Tests | grep lemma
+```
 
 ## Next Steps
 
-1. Open any generated .thy file in Isabelle/jEdit
-2. Wait for QHLProver to load (first time only)
-3. See your quantum circuit proofs automatically verify!
+- 📖 Read [USAGE.md](USAGE.md) for detailed documentation
+- 🔧 Check [SETUP.md](SETUP.md) for installation help
+- 💡 Explore `examples/` for more circuits
