@@ -80,11 +80,38 @@ class IsabelleTheoryGenerator:
     def generate_header(self) -> str:
         """Generate theory file header"""
         return f'''theory {self.theory_name}
-  imports "QHLProver.Quantum_Hoare" "QHLProver.Gates"
+  imports "QHLProver.Quantum_Hoare" "QHLProver.Gates" "QHLProver.Grover"
 begin
 
 (* Auto-generated from OpenQASM *)
 '''
+
+    def generate_quantum_predicates(self, num_qubits: int) -> str:
+        """Generate quantum predicate definitions for WLP analysis"""
+        predicates = f"(* Quantum Predicates for {num_qubits}-qubit system *)\n"
+
+        # Basic quantum state vectors
+        predicates += "definition \"ket_zero\" :: \"complex Matrix.mat\" where\n"
+        predicates += '  "ket_zero = (mat 2 1 (λ(i,j). if i = 0 then 1 else 0))"\n\n'
+
+        predicates += "definition \"ket_one\" :: \"complex Matrix.mat\" where\n"
+        predicates += '  "ket_one = (mat 2 1 (λ(i,j). if i = 1 then 1 else 0))"\n\n'
+
+        # Projectors for measurement
+        predicates += "definition \"proj_zero\" :: \"complex Matrix.mat\" where\n"
+        predicates += '  "proj_zero = ket_zero * adjoint ket_zero"\n\n'
+
+        predicates += "definition \"proj_one\" :: \"complex Matrix.mat\" where\n"
+        predicates += '  "proj_one = ket_one * adjoint ket_one"\n\n'
+
+        # Quantum predicates for post-conditions
+        predicates += "definition \"P0\" :: \"nat ⇒ complex Matrix.mat\" where\n"
+        predicates += '  "P0 q = proj_zero"\n\n'
+
+        predicates += "definition \"P1\" :: \"nat ⇒ complex Matrix.mat\" where\n"
+        predicates += '  "P1 q = proj_one"\n\n'
+
+        return predicates
 
     def generate_circuit_definition(self, operations: List[Tuple[str, List[int]]]) -> str:
         """Generate quantum circuit definition in Isabelle syntax"""
@@ -92,7 +119,7 @@ begin
         definition += f'  "{self.circuit_name} = '
 
         if not operations:
-            definition += 'skip"\n\n'
+            definition += 'SKIP"\n\n'
             return definition
 
         # Convert operations to Isabelle QHLProver syntax
@@ -100,9 +127,11 @@ begin
         for gate_name, indices in operations:
             # Handle measurement separately (it's not a gate)
             if gate_name.lower() == 'measure':
-                # QHLProver uses Measure n M S syntax
-                # For now, we'll use a simplified measurement
-                isabelle_ops.append(f"(Measure {indices[0]} (\\<lambda>i. undefined) [])")
+                # Generate proper measurement operator using projectors
+                qubit_idx = indices[0]
+                # Use proj_zero and proj_one from Grover theory
+                # This creates a proper measurement operator
+                isabelle_ops.append(f"(Measure {qubit_idx} (\\<lambda>k. if k = 0 then proj_zero else proj_one) [])")
                 continue
 
             isabelle_gate = GateMapping.get_gate(gate_name)
@@ -137,6 +166,49 @@ begin
 
         return definition
 
+    def generate_wlp_lemmas(self, operations: List[Tuple[str, List[int]]], num_qubits: int) -> str:
+        """Generate WLP verification lemmas"""
+        lemmas = "(* Weakest Liberal Precondition Analysis *)\n\n"
+
+        # Check for measurements
+        has_measurements = any(gate_name.lower() == 'measure' for gate_name, _ in operations)
+
+        if has_measurements:
+            lemmas += f"(* Circuit contains measurements - computing WLP for measurement probabilities *)\n\n"
+
+            # WLP for measuring |0⟩
+            lemmas += f"(* WLP: What must hold before circuit to measure |0⟩ with certainty? *)\n"
+            lemmas += f'lemma "{self.circuit_name}_wlp_measure_zero":\n'
+            lemmas += f'  assumes "d = 2"\n'
+            lemmas += f'  shows "wlp {self.circuit_name} (P0 0) = hadamard * proj_zero * adjoint hadamard"\n'
+            lemmas += f'  oops (* Requires state_sig locale and proper wlp setup *)\n\n'
+
+            # WLP for measuring |1⟩
+            lemmas += f"(* WLP: What must hold before circuit to measure |1⟩ with certainty? *)\n"
+            lemmas += f'lemma "{self.circuit_name}_wlp_measure_one":\n'
+            lemmas += f'  assumes "d = 2"\n'
+            lemmas += f'  shows "wlp {self.circuit_name} (P1 0) = hadamard * proj_one * adjoint hadamard"\n'
+            lemmas += f'  oops (* Requires state_sig locale and proper wlp setup *)\n\n'
+
+            # Expected outcomes
+            lemmas += f"(* Expected measurement probabilities from Hadamard *)\n"
+            lemmas += f'lemma "{self.circuit_name}_hadamard_probs":\n'
+            lemmas += f'  assumes "d = 2" and "initial_state = ket_zero"\n'
+            lemmas += f'  shows "trace (proj_zero * hadamard * initial_state * adjoint initial_state * adjoint hadamard) = 1/2"\n'
+            lemmas += f'  oops (* Actual probability computation *)\n\n'
+
+        else:
+            lemmas += f"(* Circuit without measurements - WLP for unitary transformations *)\n\n"
+
+            # WLP for unitary circuits
+            lemmas += f"(* WLP: What predicate ensures final state satisfies P? *)\n"
+            lemmas += f'lemma "{self.circuit_name}_wlp_unitary":\n'
+            lemmas += f'  assumes "d = 2" and "is_quantum_predicate P"\n'
+            lemmas += f'  shows "wlp {self.circuit_name} P = adjoint hadamard * P * hadamard"\n'
+            lemmas += f'  oops (* Requires wlp rules for Utrans *)\n\n'
+
+        return lemmas
+
     def generate_verification_lemmas(self, operations: List[Tuple[str, List[int]]], num_qubits: int) -> str:
         """Generate verification lemmas"""
         lemmas = ""
@@ -148,44 +220,31 @@ begin
 
         # Generate gate-specific verification lemmas
         if 'h' in gates_used:
-            lemmas += f'''(* Verification 1: Hadamard gate is unitary (fundamental property) *)
+            lemmas += f'''(* Gate Property: Hadamard is unitary *)
 lemma "{self.circuit_name}_hadamard_unitary":
   "unitary hadamard"
   by (rule unitary_hadamard)
 
-(* Verification 2: Hadamard gate has correct dimensions *)
+(* Gate Property: Hadamard dimensions *)
 lemma "{self.circuit_name}_hadamard_dim":
   "hadamard \<in> carrier_mat 2 2"
   by (rule hadamard_dim)
 
-(* Verification 3: Hadamard gate is Hermitian (self-adjoint) *)
+(* Gate Property: Hadamard is Hermitian *)
 lemma "{self.circuit_name}_hadamard_hermitian":
   "hermitian hadamard"
   by (rule hermitian_hadamard)
 
 '''
 
-        # Generate WLP-related lemmas (conceptual - require proper setup)
-        has_measurements = any(gate[0].lower() == 'measure' for gate, _ in operations)
+        # Generate WLP analysis
+        lemmas += self.generate_wlp_lemmas(operations, num_qubits)
 
-        if has_measurements:
-            lemmas += f'''(* Note: This circuit contains measurements *)
-(* Weakest precondition (wlp) analysis requires proper quantum predicates *)
-(* Example: wlp {self.circuit_name} (P0 0) would give probability of measuring |0⟩ *)
-(* For now, we verify gate properties that ensure the circuit is well-formed *)
-
-'''
-
-        # Circuit complexity lemma
-        lemmas += f'''(* Verification: Circuit is a valid quantum program *)
-lemma "{self.circuit_name}_is_quantum_program":
+        # Circuit well-formedness
+        lemmas += f'''(* Circuit Well-formedness *)
+lemma "{self.circuit_name}_well_com":
   "well_com {self.circuit_name}"
-  oops (* Requires proper measurement setup *)
-
-(* Verification: Circuit structure verification *)
-lemma "{self.circuit_name}_structure":
-  "{self.circuit_name} = {self.circuit_name}"
-  by (rule refl)
+  oops (* Requires proper measurement and dimension setup *)
 
 '''
 
@@ -198,6 +257,7 @@ lemma "{self.circuit_name}_structure":
     def generate_theory(self, operations: List[Tuple[str, List[int]]], num_qubits: int) -> str:
         """Generate complete Isabelle theory file"""
         theory = self.generate_header()
+        theory += self.generate_quantum_predicates(num_qubits)
         theory += self.generate_circuit_definition(operations)
         theory += self.generate_verification_lemmas(operations, num_qubits)
         theory += self.generate_footer()

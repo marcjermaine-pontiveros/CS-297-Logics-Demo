@@ -12,3 +12,4 @@ session QHL_Tests = "QHLProver" +
     "output/Teleportation"
     "output/HadamardExample"
     "output/HadamardFinal"
+    "output/HadamardWLPTest"
